@@ -1,0 +1,26 @@
+def convertTo512Overlap(txt, tokenizer, chunksize = 512):
+    tokens = tokenizer.encode_plus(txt, return_tensors='pt', padding=True, truncation=True, add_special_tokens = True, return_attention_mask=True)
+    size = chunksize/2 - 2
+    input_id_splits = list(tokens['input_ids'][0].split(size))
+    mask_splits = list(tokens['attention_mask'][0].split(size))
+    
+    for i in range(len(input_id_splits)):
+        input_id_splits[i] = torch.cat([
+            torch.Tensor([101]), input_id_splits[i],input_id_splits[i+1], torch.Tensor([102])
+        ])
+        
+        mask_splits[i] = torch.cat([
+            torch.Tensor([1]), mask_splits[i], mask_splits[i+1], torch.Tensor([1])
+        ])
+        
+        pad = chunksize - input_id_splits[i].shape[0] - input_id_splits[i+1].shape[0]
+        if pad > 0:
+            input_id_splits[i] = torch.cat([
+                input_id_splits[i], input_id_splits[i+1], torch.Tensor([0] * pad)
+            ])
+            
+            mask_splits[i] = torch.cat([
+                mask_splits[i], mask_splits[i+ 1], torch.Tensor([0] * pad)
+            ])
+    
+    return torch.stack(input_id_splits).to(device), torch.stack(mask_splits).to(device)
